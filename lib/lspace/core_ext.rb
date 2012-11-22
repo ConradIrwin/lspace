@@ -32,6 +32,6 @@ end
 
 class Proc
   def in_lspace
-    LSpace(&self)
+    LSpace.preserve(&self)
   end
 end
