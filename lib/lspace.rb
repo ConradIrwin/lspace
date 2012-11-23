@@ -1,7 +1,6 @@
 require File.expand_path('../lspace/core_ext', __FILE__)
 
-module LSpace
-
+class LSpace
   class << self
     # Get the most specific value for the key.
     #
@@ -17,6 +16,7 @@ module LSpace
     # @param [Object] key
     # @return [Object]
     def [](key)
+      current[key]
       active.each do |c|
         return c[key] if c.has_key?(key)
       end
