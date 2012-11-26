@@ -8,7 +8,7 @@ describe LSpace do
 
     it "should preserve LSpace in deferrable callbacks" do
       d = Class.new{ include EM::Deferrable }.new
-      LSpace.new(:foo => 2) do
+      LSpace.update(:foo => 2) do
         d.callback do
           $foo = LSpace[:foo]
         end
@@ -19,7 +19,7 @@ describe LSpace do
 
     it "should preserve LSpace in deferrable errbacks" do
       d = Class.new{ include EM::Deferrable }.new
-      LSpace.new(:foo => 2) do
+      LSpace.update(:foo => 2) do
         d.errback do
           $foo = LSpace[:foo]
         end
@@ -30,7 +30,7 @@ describe LSpace do
 
     it "should preserve LSpace in EM::defer operation" do
       EM::run do
-        LSpace.new(:foo => 4) do
+        LSpace.update(:foo => 4) do
           EM::defer(lambda{
             $foo = LSpace[:foo]
           }, proc{
@@ -43,7 +43,7 @@ describe LSpace do
 
     it "should preserve LSpace in EM::defer callback" do
       EM::run do
-        LSpace.new(:foo => 4) do
+        LSpace.update(:foo => 4) do
           EM::defer(lambda{
             nil
           }, proc{
@@ -58,7 +58,7 @@ describe LSpace do
     it "should preserve LSpace in EM.next_tick" do
       EM::run do
         EM::next_tick do
-          LSpace.new :foo => 5 do
+          LSpace.update :foo => 5 do
             EM::next_tick do
               $foo = LSpace[:foo]
               EM::stop
@@ -117,7 +117,7 @@ describe LSpace do
         end
       end
 
-      LSpace.new(:bar => :baz) do
+      LSpace.update(:bar => :baz) do
         EM::run do
           EM::start_server '0.0.0.0', 9345, server
           EM::connect '127.0.0.1', 9345, client

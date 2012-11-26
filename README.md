@@ -22,7 +22,7 @@ So instead, for eventmachine, you can do:
 ```ruby
 require 'lspace/eventmachine'
 def with_master_database(&block)
-  LSpace.new(:database_connection => master_connection) do
+  LSpace.update(:database_connection => master_connection) do
     block.call
   end
 end

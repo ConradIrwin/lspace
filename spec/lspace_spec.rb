@@ -9,8 +9,7 @@ describe LSpace do
   it "should isolate changes to nested spaces" do
     LSpace[:foo] = 2
 
-    LSpace.new do
-      LSpace[:foo] = 1
+    LSpace.update :foo => 1 do
       LSpace[:foo].should == 1
     end
 
@@ -19,7 +18,7 @@ describe LSpace do
 
   it "should fallback to outer spaces" do
     LSpace[:bar] = 1
-    LSpace.new do
+    LSpace.update do
       LSpace[:bar].should == 1
     end
   end
@@ -35,30 +34,30 @@ describe LSpace do
   end
 
   it "should allow preserving spaces" do
-    p = LSpace.new(:foo => 1){ proc{ LSpace[:foo] }.in_lspace }
+    p = LSpace.update(:foo => 1){ proc{ LSpace[:foo] }.in_lspace }
     p.call.should == 1
   end
 
   it "should allow resuming spaces in different threads" do
-    p = LSpace.new(:foo => 1){ proc{ LSpace[:foo] }.in_lspace }
+    p = LSpace.update(:foo => 1){ proc{ LSpace[:foo] }.in_lspace }
     Thread.new{ p.call.should == 1 }.join
   end
 
   it "should allow resuming spaces in different fibers" do
-    p = LSpace.new(:foo => 1){ LSpace.preserve{ LSpace[:foo] } }
+    p = LSpace.update(:foo => 1){ LSpace.preserve{ LSpace[:foo] } }
     Fiber.new{ p.call.should == 1 }.resume
   end
 
   it "should clean up lspace after resuming" do
-    p = LSpace.new(:foo => 1){ proc{ LSpace[:foo] }.in_lspace }
+    p = LSpace.update(:foo => 1){ proc{ LSpace[:foo] }.in_lspace }
     p.call.should == 1
     LSpace[:foo].should == nil
   end
 
   it "should resume the entire nested lspace" do
-    p = LSpace.new(:foo => 1) {
-          LSpace.new(:bar => 2) {
-            LSpace.new(:baz => 3) {
+    p = LSpace.update(:foo => 1) {
+          LSpace.update(:bar => 2) {
+            LSpace.update(:baz => 3) {
               lambda &LSpace.preserve{ LSpace[:foo] + LSpace[:bar] + LSpace[:baz] }
             }
           }
@@ -69,16 +68,16 @@ describe LSpace do
 
   it "should return to enclosing lspace after re-entering new lspace" do
     LSpace.new(:baz => 1) do
-      p = LSpace.new(:baz => 2){ proc{ LSpace[:baz] }.in_lspace }
+      p = LSpace.update(:baz => 2){ proc{ LSpace[:baz] }.in_lspace }
       p.call.should == 2
       LSpace[:baz].should == 1
     end
   end
 
   it "should clean up lspaces properly even if an exception is raised" do
-    LSpace.new(:baz => 1) do
+    LSpace.update(:baz => 1) do
       begin
-        LSpace.new(:baz => 1) do
+        LSpace.update(:baz => 1) do
           raise "OOPS"
         end
       rescue => e

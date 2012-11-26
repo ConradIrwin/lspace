@@ -4,7 +4,7 @@ require 'pry-rescue/rspec'
 
 RSpec.configure do |c|
   c.around(:each) do |example|
-    LSpace.new do
+    LSpace.clean do
       example.run
     end
   end

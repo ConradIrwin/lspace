@@ -31,7 +31,7 @@ module EventMachine
     def self.allocate
       allocate_without_lspace.instance_eval do
         extend EventMachine::LSpacePreserver
-        LSpace.new do
+        LSpace.update do
           setup_lspace
           @lspace = LSpace.current
         end

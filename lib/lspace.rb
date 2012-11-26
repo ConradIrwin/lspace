@@ -1,214 +1,144 @@
 require File.expand_path('../lspace/core_ext', __FILE__)
+require File.expand_path('../lspace/class_methods', __FILE__)
 
+# An LSpace is an implicit namespace for storing state that is secondary to your
+# application's purpose, but still necessary.
+#
+# In many ways they are the successor to the Thread-local namespace, but they are designed
+# to be active during a logical segment of code no-matter how you slice that code amoungst
+# different Threads or Fibers.
+#
+# The API for LSpace encourages creating a new sub-LSpace whenever you want to mutate the
+# value of an LSpace-variable. This ensures that local changes take effect only for code
+# that is logically contained within a block, avoiding many of the problems of mutable
+# global state.
+#
+# @example
+#   require 'lspace/thread'
+#   LSpace.update(:job_id => 1) do
+#     Thread.new do
+#       puts "processing #{LSpace[:job_id]}"
+#     end.join
+#   end
+#
 class LSpace
-  class << self
-    # Get the most specific value for the key.
-    #
-    # If nested LSpaces are active, returns the value set in the innermost scope.
-    # If this key is not present in any of the nested LSpaces, nil is returned.
-    #
-    # @example
-    #   LSpace.new :user_id => 5 do
-    #     LSpace.new :user_id => 6 do
-    #       LSpace[:user_id] == 6
-    #     end
-    #   end
-    # @param [Object] key
-    # @return [Object]
-    def [](key)
-      current[key]
-      active.each do |c|
-        return c[key] if c.has_key?(key)
-      end
-      nil
+
+  attr_accessor :hash, :parent, :around_filters
+
+  # Create a new LSpace.
+  #
+  # By default the new LSpace will exactly mirror the currently active LSpace,
+  # though any variables you pass in will take precedence over those defined in the
+  # parent.
+  #
+  # @param [Hash] hash  New values for LSpace variables in this LSpace
+  # @param [LSpace] parent  The parent LSpace that lookup should default to.
+  # @param [Proc] block  Will be called in the new lspace if present.
+  def initialize(hash={}, parent=LSpace.current, &block)
+    @hash = hash
+    @parent = parent
+    @around_filters = []
+    enter(&block) if block_given?
+  end
+
+  # Get the most specific value for the key.
+  #
+  # If the key is not present in the hash of this LSpace, lookup proceeds up the chain
+  # of parent LSpaces. If the key is not found anywhere, nil is returned.
+  #
+  # @example
+  #   LSpace.update :user_id => 5 do
+  #     LSpace.update :user_id => 6 do
+  #       LSpace[:user_id] == 6
+  #     end
+  #   end
+  # @param [Object] key
+  # @return [Object]
+  def [](key)
+    hierarchy.each do |lspace|
+      return lspace.hash[key] if lspace.hash.has_key?(key)
     end
 
-    # Sets the value for the key in the currently active LSpace.
-    #
-    # This does not have any effect on outer LSpaces.
-    #
-    # If your LSpace is shared between threads, you should think very hard before
-    # changing a value, it's often better to create a new LSpace if you want to
-    # override a value temporarily.
-    #
-    # @example
-    #   LSpace.new :user_id => 5 do
-    #     LSpace.new do
-    #       LSpace[:user_id] = 6
-    #       LSpace[:user_id] == 6
-    #     end
-    #     LSpace[:user_id] == 5
-    #   end
-    #
-    # @param [Object] key
-    # @param [Object] value
-    # @return [Object] value
-    def []=(key, value)
-      current[key] = value
-    end
+    nil
+  end
 
-    # Create a new LSpace.
-    #
-    # If a block is passed, then the block is called in the new LSpace,
-    # otherwise you can manually pass the LSpace to {LSpace.enter} later.
-    #
-    # The returned LSpace will inherit from the currently active LSpace:
-    #
-    # @example
-    #   LSpace.new :job_id => 7 do
-    #     LSpace[:job_id] == 7
-    #   end
-    #
-    # @example
-    #   class Job
-    #     def initialize
-    #       @lspace = LSpace.new
-    #     end
-    #
-    #     def run!
-    #       LSpace.enter(@lspace){ run }
-    #     end
-    #   end
-    #
-    # @param [Hash] new  Values to set in the new LSpace
-    # @param [Proc] block  The block to run
-    # @return [Hash] The new LSpace (unless a block is given)
-    # @return [Object]  The return value of the block (if a block is given)
-    def new(new={}, &block)
-      new[:outer_lspace] = current
-      if block_given?
-        enter(new, &block)
-      else
-        new
-      end
-    end
+  # Update the LSpace-variable with the given name.
+  #
+  # Bear in mind that any code using this LSpace will see this change, and consider
+  # using {LSpace.update} instead to localize your changes.
+  #
+  # This method is mostly useful for setting up a new LSpace before any code is
+  # using it, and has no effect on parent LSpaces.
+  #
+  # @example
+  #   lspace = LSpace.new
+  #   lspace[:user_id] = 6
+  #   LSpace.enter(lspace) do
+  #     LSpace[:user_id] == 6
+  #   end
+  # @param [Object] key
+  # @param [Object] value
+  def []=(key, value)
+    hash[key] = value
+  end
 
-    # Enter an LSpace
-    #
-    # This sets a new LSpace to be current for the duration of the block,
-    # it also runs any around filters for the new space. (Around filters that
-    # were present in the previous space are not run again).
-    #
-    # @example
-    #   class Job
-    #     def initialize
-    #       @lspace = LSpace.new
-    #     end
-    #
-    #     def run!
-    #       LSpace.enter(@lspace){ run }
-    #     end
-    #   end
-    #
-    # @param [Hash] new  The LSpace to enter
-    # @param [Proc] block  The block to run
-    def enter(new, &block)
-      previous = current
-      self.current = new
+  # Add an around_filter to this LSpace.
+  #
+  # Around filters are blocks that take a block-parameter. They are called whenever
+  # the LSpace is re-entered, so they are suitable for implementing integrations between
+  # LSpace and libraries that rely on Thread-local state (like Log4r) or for adding
+  # fallback exception handlers to your logical segment of code (to prevent exceptions
+  # from killing your Thread-pool or event loop).
+  #
+  # @example
+  #   lspace = LSpace.new
+  #   lspace.around_filter do |&block|
+  #     begin
+  #       block.call
+  #     rescue => e
+  #       puts "Job #{LSpace[:job_id]} failed with: #{e}"
+  #     end
+  #   end
+  #
+  #   LSpace.enter(lspace) do
+  #     Thread.new{ raise "foo" }.join
+  #   end
+  #
+  def around_filter(&filter)
+    around_filters << filter
+  end
 
-      new_frames = active.take_while{ |space| space != previous }
-      filters = new_frames.map{ |space| space[:around_filter] }.compact
+  # Enter this LSpace for the duration of the block
+  #
+  # @see LSpace.enter
+  # @param [Proc] block  The block to run
+  def enter(&block)
+    LSpace.enter(self, &block)
+  end
 
-      filters.inject(block) do |block, filter|
-        lambda{ filter.call(&block) }
-      end.call
-    ensure
-      self.current = previous
-    end
+  # Ensure that the Proc runs in this LSpace
+  #
+  # @see Proc#in_lspace
+  # @see LSpace.preserve
+  def wrap(&original)
+    # Store self so that it works if the block is instance_eval'd
+    shelf = self
 
-    # Preserve the current LSpace when this block is called
-    #
-    # @example
-    #   LSpace.new :user_id => 1 do
-    #     $todo = LSpace.preserve do |args|
-    #               LSpace[:user_id]
-    #             end
-    #   end
-    #   $todo.call == 1
-    #
-    # @see [Proc#in_lspace]
-    # @param [Proc] original  The block to wrap
-    # @return [Proc] A modified block that will be executed in the current LSpace.
-    def preserve(&original)
-      current = self.current
-
-      proc do |*args, &block|
-        LSpace.enter(current) do
-          original.call(*args, &block)
-        end
+    proc do |*args, &block|
+      shelf.enter do
+        original.call(*args, &block)
       end
     end
+  end
 
-    # Add an around filter for the current LSpace
-    #
-    # The filter will be called every time this LSpace is entered on a new call stack, which
-    # makes it suitable for maintaining state in libraries that are not LSpace aware (like
-    # log4r) or implementing unified fallback error handling.
-    #
-    # Bear in mind that when you add an around_filter to the current LSpace it will not be
-    # running. For this reason, you should try and set up around filters before using the
-    # LSpace properly.
-    #
-    # @example
-    #   class Job
-    #     def initialize
-    #       LSpace.new do
-    #
-    #         LSpace.around_filter do |&block|
-    #           begin
-    #             block.call
-    #           rescue => e
-    #             puts "Job #{LSpace[:job_id]} failed with: #{e}"
-    #           end
-    #         end
-    #
-    #         @lspace = LSpace.current
-    #       end
-    #     end
-    #
-    #     def run!
-    #       LSpace.enter(@lspace){ run }
-    #     end
-    #   end
-    #
-    # @param [Proc] new_filter A Proc that takes a &block argument.
-    def around_filter(&new_filter)
-      if old_filter = current[:around_filter]
-        current[:around_filter] = lambda{ |&block| old_filter.call{ new_filter.call(&block) } }
-      else
-        current[:around_filter] = new_filter
-      end
-    end
-
-    # Get the currently active LSpace
-    #
-    # @see LSpace.enter
-    # @param [Hash] new  The new LSpace
-    def current
-      Thread.current[:lspace] ||= {}
-    end
-
-    private
-
-    # Set the current LSpace
-    #
-    # @see LSpace.enter
-    # @param [Hash] new  The new LSpace
-    def current=(new)
-      Thread.current[:lspace] = new
-    end
-
-    # All active LSpaces from most-specific to most-generic
-    #
-    # @return [Array<Hash>]
-    def active
-      c = self.current
-      a = []
-      while c
-        a << c
-        c = c[:outer_lspace]
-      end
-      a
+  # Get the list of Lspaces up to the root, most specific first
+  #
+  # @return [Array<LSpace>]
+  def hierarchy
+    if parent
+      [self] + parent.hierarchy
+    else
+      [self]
     end
   end
 end
