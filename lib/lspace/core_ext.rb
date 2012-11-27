@@ -55,7 +55,7 @@ class Module
 
       define_method(method) do |*args, &block|
         args.map!{ |a| Proc === a ? a.in_lspace : a }
-        block = block && block.in_lspace
+        block = block.in_lspace if block
         __send__(method_without_lspace, *args, &block)
       end
 
