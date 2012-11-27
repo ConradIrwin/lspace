@@ -15,7 +15,7 @@ class Module
   #   LSpace[:user_id] = 6
   #   Job.new.user == #<User:6>
   #
-  # @param [Symbol] *attrs The accessors to create
+  # @param [Symbol] attrs The accessors to create
   def lspace_reader(*attrs)
     attrs.each do |attr|
       define_method(attr) do
@@ -42,7 +42,7 @@ class Module
   #     Thread.new{ LSpace[:user_id] == 2 }
   #   end
   #
-  # @param [Symbol] *methods  The methods to wrap
+  # @param [Symbol] methods  The methods to wrap
   def in_lspace(*methods)
     methods.each do |method|
       method_without_lspace = "#{method}_without_lspace"

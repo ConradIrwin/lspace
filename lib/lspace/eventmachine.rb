@@ -20,7 +20,7 @@ module EventMachine
   class Connection
 
     class << self
-      # As EM uses a custom implementation of {new}, the only sane way to
+      # As EM uses a custom implementation of new, the only sane way to
       # set up the LSpace in advance is to override allocate.
       alias_method :allocate_without_lspace, :allocate
     end
@@ -28,7 +28,7 @@ module EventMachine
     # Overridden allocate which sets up a new LSpace.
     #
     # Each connection object is run in its own LSpace, which can be
-    # configured by implementing the {setup_lspace} method.
+    # configured by implementing the {Connection#setup_lspace} method.
     def self.allocate
       allocate_without_lspace.instance_eval do
         extend EventMachine::LSpacePreserver
