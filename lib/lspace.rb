@@ -105,7 +105,7 @@ class LSpace
   #   end
   #
   def around_filter(&filter)
-    around_filters << filter
+    around_filters.unshift filter
   end
 
   # Enter this LSpace for the duration of the block

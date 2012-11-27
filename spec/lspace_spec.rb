@@ -1,88 +1,150 @@
 require 'spec_helper'
 
 describe LSpace do
-  it "should act like a hash" do
-    LSpace[:foo] = 1
-    LSpace[:foo].should == 1
+  before do
+    @lspace = LSpace.new({:foo => 1}, nil)
   end
 
-  it "should isolate changes to nested spaces" do
-    LSpace[:foo] = 2
-
-    LSpace.update :foo => 1 do
-      LSpace[:foo].should == 1
+  describe "#[]" do
+    it "should act like a hash" do
+      @lspace[:foo].should == 1
     end
 
-    LSpace[:foo].should == 2
-  end
+    it "should fall back to the parent" do
+      lspace2 = LSpace.new({:bar => 2}, @lspace)
+      lspace2[:foo].should == 1
+    end
 
-  it "should fallback to outer spaces" do
-    LSpace[:bar] = 1
-    LSpace.update do
-      LSpace[:bar].should == 1
+    it "should use the child in preference to the parent" do
+      lspace2 = LSpace.new({:foo => 2}, @lspace)
+      lspace2[:foo].should == 2
     end
   end
 
-  it "should be isolated between different threads" do
-    LSpace[:foo] = 1
-    Thread.new{ LSpace[:foo].should == nil }.join
-  end
+  describe "#[]=" do
+    it "should act like a hash" do
+      @lspace[:foo] = 7
+      @lspace[:foo].should == 7
+    end
 
-  it "should be isolated between different fibers" do
-    LSpace[:foo] = 1
-    Fiber.new{ LSpace[:foo].should == nil }.resume
-  end
-
-  it "should allow preserving spaces" do
-    p = LSpace.update(:foo => 1){ proc{ LSpace[:foo] }.in_lspace }
-    p.call.should == 1
-  end
-
-  it "should allow resuming spaces in different threads" do
-    p = LSpace.update(:foo => 1){ proc{ LSpace[:foo] }.in_lspace }
-    Thread.new{ p.call.should == 1 }.join
-  end
-
-  it "should allow resuming spaces in different fibers" do
-    p = LSpace.update(:foo => 1){ LSpace.preserve{ LSpace[:foo] } }
-    Fiber.new{ p.call.should == 1 }.resume
-  end
-
-  it "should clean up lspace after resuming" do
-    p = LSpace.update(:foo => 1){ proc{ LSpace[:foo] }.in_lspace }
-    p.call.should == 1
-    LSpace[:foo].should == nil
-  end
-
-  it "should resume the entire nested lspace" do
-    p = LSpace.update(:foo => 1) {
-          LSpace.update(:bar => 2) {
-            LSpace.update(:baz => 3) {
-              lambda &LSpace.preserve{ LSpace[:foo] + LSpace[:bar] + LSpace[:baz] }
-            }
-          }
-        }
-
-    p.call.should == 6
-  end
-
-  it "should return to enclosing lspace after re-entering new lspace" do
-    LSpace.new(:baz => 1) do
-      p = LSpace.update(:baz => 2){ proc{ LSpace[:baz] }.in_lspace }
-      p.call.should == 2
-      LSpace[:baz].should == 1
+    it "should not affect the parent" do
+      lspace2 = LSpace.new({}, @lspace)
+      lspace2[:foo] = 7
+      @lspace[:foo].should == 1
     end
   end
 
-  it "should clean up lspaces properly even if an exception is raised" do
-    LSpace.update(:baz => 1) do
-      begin
-        LSpace.update(:baz => 1) do
-          raise "OOPS"
+  describe "#around_filter" do
+    before do
+      @entered = 0
+      @returned = 0
+
+      @lspace.around_filter do |&block|
+        @entered += 1
+        begin
+          block.call
+        ensure
+          @returned += 1
         end
-      rescue => e
-        LSpace[:baz].should == 1
       end
+    end
+
+    it "should be run when the LSpace is entered" do
+      LSpace.enter @lspace do
+        @entered.should == 1
+        @returned.should == 0
+      end
+      @returned.should == 1
+    end
+
+    it "should not be run when the LSpace is re-entered" do
+      LSpace.enter @lspace do
+        LSpace.enter @lspace do
+          @entered.should == 1
+        end
+      end
+    end
+
+    it "should not be re-run when a child of the LSpace is entered" do
+      lspace2 = LSpace.new({}, @lspace)
+
+      LSpace.enter @lspace do
+        lspace2.enter do
+          @entered.should == 1
+        end
+      end
+    end
+
+    it "should apply around_filters from first to last" do
+      called = []
+      @lspace.around_filter do |&block|
+        called << :first
+        block.call
+      end
+      @lspace.around_filter do |&block|
+        called << :last
+        block.call
+      end
+
+      LSpace.enter @lspace do
+        called.should == [:first, :last]
+      end
+    end
+
+    it "should apply around_filters from parents before children" do
+      called = []
+      @lspace.around_filter do |&block|
+        called << :first
+        block.call
+      end
+      lspace2 = LSpace.new({}, @lspace)
+      lspace2.around_filter do |&block|
+        called << :last
+        block.call
+      end
+
+      LSpace.enter lspace2 do
+        called.should == [:first, :last]
+      end
+    end
+  end
+
+  describe "#enter" do
+    it "should delegate to LSpace" do
+      LSpace.should_receive(:enter).once.with(@lspace)
+      @lspace.enter do
+        5 + 5
+      end
+    end
+  end
+
+  describe "#wrap" do
+    it "should cause the LSpace to be entered when the block is called" do
+      @lspace.wrap{ LSpace.current.should == @lspace }.call
+    end
+
+    it "should revert the changed LSpace at the end of the block" do
+      lspace = LSpace.current
+      @lspace.wrap{ LSpace.current.should == @lspace }.call
+      LSpace.current.should == lspace
+    end
+
+    it "should be possible to call the block on a different thread" do
+      todo = @lspace.wrap{ LSpace.current.should == @lspace }
+      Thread.new{ todo.call }.join
+    end
+  end
+
+  describe "#hierarchy" do
+    it "should return [self] if there is no parent" do
+      @lspace.hierarchy.should == [@lspace]
+    end
+
+    it "should return the full list if there are parents" do
+      l1 = LSpace.new({}, @lspace)
+      l2 = LSpace.new({}, l1)
+
+      l2.hierarchy.should == [l2, l1, @lspace]
     end
   end
 end

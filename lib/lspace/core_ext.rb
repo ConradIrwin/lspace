@@ -1,9 +1,11 @@
 class Module
-  # Create getter and setter functions for LSpace.
+  # Create getter methods for LSpace
+  #
+  # Assumes that your LSpace keys are Symbols.
   #
   # @example
   #   class Job
-  #     attr_lspace :user_id
+  #     lspace_reader :user_id
   #
   #     def user
   #       User.find(user_id)
@@ -14,14 +16,10 @@ class Module
   #   Job.new.user == #<User:6>
   #
   # @param [Symbol] *attrs The accessors to create
-  def attr_lspace(*attrs)
+  def lspace_reader(*attrs)
     attrs.each do |attr|
       define_method(attr) do
         LSpace[attr]
-      end
-
-      define_method("#{attr}=") do |value|
-        LSpace[attr] = value
       end
     end
   end
