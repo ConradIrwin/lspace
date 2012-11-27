@@ -5,7 +5,7 @@ require File.expand_path('../lspace/class_methods', __FILE__)
 # application's purpose, but still necessary.
 #
 # In many ways they are the successor to the Thread-local namespace, but they are designed
-# to be active during a logical segment of code no-matter how you slice that code amoungst
+# to be active during a logical segment of code, no matter how you slice that code amongst
 # different Threads or Fibers.
 #
 # The API for LSpace encourages creating a new sub-LSpace whenever you want to mutate the
@@ -116,7 +116,7 @@ class LSpace
     LSpace.enter(self, &block)
   end
 
-  # Ensure that the Proc runs in this LSpace
+  # Wraps a block/proc such that it runs in this LSpace when it is called.
   #
   # @see Proc#in_lspace
   # @see LSpace.preserve

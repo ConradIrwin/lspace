@@ -19,7 +19,8 @@ class LSpace
     enter new({}, nil), &block
   end
 
-  # Create a new LSpace with the given keys set to the given values.
+  # Create a new LSpace with the given keys set to the given values, and run the
+  # given block in that new LSpace.
   #
   # The LSpace will inherit any unspecified keys from the currently active LSpace.
   #
