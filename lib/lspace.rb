@@ -1,4 +1,5 @@
 require File.expand_path('../lspace/core_ext', __FILE__)
+require File.expand_path('../lspace/context', __FILE__)
 
 class LSpace
   class << self
@@ -17,10 +18,6 @@ class LSpace
     # @return [Object]
     def [](key)
       current[key]
-      active.each do |c|
-        return c[key] if c.has_key?(key)
-      end
-      nil
     end
 
     # Sets the value for the key in the currently active LSpace.
@@ -70,12 +67,13 @@ class LSpace
     #     end
     #   end
     #
-    # @param [Hash] new  Values to set in the new LSpace
+    # @param [Hash] data  Values to set in the new LSpace
     # @param [Proc] block  The block to run
-    # @return [Hash] The new LSpace (unless a block is given)
+    # @return [LSpace::Context] The new LSpace (unless a block is given)
     # @return [Object]  The return value of the block (if a block is given)
-    def new(new={}, &block)
-      new[:outer_lspace] = current
+    def new(data={}, &block)
+      new = LSpace::Context.new(data)
+      new.parent = current
       if block_given?
         enter(new, &block)
       else
@@ -100,18 +98,13 @@ class LSpace
     #     end
     #   end
     #
-    # @param [Hash] new  The LSpace to enter
+    # @param [LSpace::Context] new  The LSpace to enter
     # @param [Proc] block  The block to run
     def enter(new, &block)
       previous = current
       self.current = new
 
-      new_frames = active.take_while{ |space| space != previous }
-      filters = new_frames.map{ |space| space[:around_filter] }.compact
-
-      filters.inject(block) do |block, filter|
-        lambda{ filter.call(&block) }
-      end.call
+      current.enter(&block)
     ensure
       self.current = previous
     end
@@ -173,11 +166,7 @@ class LSpace
     #
     # @param [Proc] new_filter A Proc that takes a &block argument.
     def around_filter(&new_filter)
-      if old_filter = current[:around_filter]
-        current[:around_filter] = lambda{ |&block| old_filter.call{ new_filter.call(&block) } }
-      else
-        current[:around_filter] = new_filter
-      end
+      current.add_around_filter(new_filter)
     end
 
     # Get the currently active LSpace
@@ -185,7 +174,7 @@ class LSpace
     # @see LSpace.enter
     # @param [Hash] new  The new LSpace
     def current
-      Thread.current[:lspace] ||= {}
+      Thread.current[:lspace] ||= Context.new
     end
 
     private
@@ -193,22 +182,9 @@ class LSpace
     # Set the current LSpace
     #
     # @see LSpace.enter
-    # @param [Hash] new  The new LSpace
+    # @param [LSpace::Context] new  The new LSpace
     def current=(new)
       Thread.current[:lspace] = new
-    end
-
-    # All active LSpaces from most-specific to most-generic
-    #
-    # @return [Array<Hash>]
-    def active
-      c = self.current
-      a = []
-      while c
-        a << c
-        c = c[:outer_lspace]
-      end
-      a
     end
   end
 end
