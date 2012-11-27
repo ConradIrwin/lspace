@@ -59,6 +59,15 @@ describe Module do
       @klass.private_method_defined?(:private_test).should == true
       @klass.protected_method_defined?(:protected_test).should == true
     end
+
+    it "should be idempotent" do
+      @klass.in_lspace :initialize
+
+      LSpace.update :user_id => 9 do
+        @task = @klass.new{ LSpace[:user_id] }
+      end
+      @task.call.should == 9
+    end
   end
 end
 

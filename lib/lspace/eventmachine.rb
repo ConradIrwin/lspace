@@ -1,5 +1,8 @@
 require 'eventmachine'
 require 'lspace'
+
+# Optional module to make EventMachine preserve LSpaces in its event callbacks. Not loaded by
+# default; you must +require 'lspace/eventmachine'+ to use it.
 module EventMachine
 
   # Most of the low-level EventMachine stuff goes through singleton methods on the
