@@ -1,57 +1,90 @@
+LSpace, named after the Discworld's [L-Space](http://en.wikipedia.org/wiki/L-Space), is an
+implementation of dynamic scoping for Ruby.
 
-LSpace, named after the Discworld's [L-Space](http://en.wikipedia.org/wiki/L-Space), is a
-way to maintain application context throughout a section of code.
+Dynamic scope is a fancy term for a variable which changes its value depending on the
+current context that your application is running in. i.e. the same function can see a
+different value for a dynamically scoped variable depending on the code-path taken to
+reach that function.
 
-In the old days, you'd do something like:
+This is particularly useful for implementing many utility functions in applications. For
+example, let's say I want to use the master database connection for some database
+operations. I don't want to have to pass a reference to the database connection all the
+way throughout my code, so I just push it into the LSpace:
 
 ```ruby
-def with_master_database(&block)
-  Thread.local[:database_connection] = master_connection
-  block.call
-ensure
-  Thread.local[:database_connection] = nil
+require 'lspace'
+class DatabaseConnection
+  def get_connection
+    LSpace[:preferred_connection] || any_free_connection
+  end
+
+  def self.use_master(&block)
+    LSpace.update(:preferred_connection => master_connection) do
+      block.call
+    end
+  end
+end
+
+DatabaseConnection.use_master do
+  very_important_transactions!
 end
 ```
 
-This works well until you're using a framework like eventmachine, or splitting
-CPU-intensive parts off into a threadpool, because your one logical section of code may
-involve lots of separate stack frames.
+Everything that happens in the `very_important_transactions!` block will use
+`LSpace[:preferred_connection]`, which is set to be the master database.
 
-So instead, for eventmachine, you can do:
+This is useful for a whole host of stuff, we use it to ensure that every line logged by a
+given Http request is prefixed by a unique value, so we can tie them back together again.
+We also use it for generating trees of performance metrics.
+
+All of these concerns have one thing in common: they're not important to what your program
+is trying to do, but they are important for the way your program is trying to do things.
+It doesn't make sense to stuff everything into `LSpace`, though early versions of Lisp
+essentialy did that, because it makes your code harder to understand.
+
+Eventmachine
+============
+
+LSpace also comes with optional eventmachine integration. This adds a few hooks to
+Eventmachine to ensure that the current LSpace is preserved, even if your code has
+asynchronous callbacks; or runs things in eventmachine's threadpool:
 
 ```ruby
 require 'lspace/eventmachine'
-def with_master_database(&block)
-  LSpace.update(:database_connection => master_connection) do
-    block.call
+require 'em-http-request'
+
+class Fetcher
+  lspace_reader :log_prefix
+
+  def log(str)
+    puts "#{log_prefix}\t#{str}"
+  end
+
+  def fetch(url)
+    log "Fetching #{url}"
+    EM::HttpRequest.new(url).get.callback do
+      log "Fetched #{url}"
+    end
+  end
+end
+
+EM::run do
+  LSpace.update(:log_prefix => rand(50000)) do
+    Fetcher.new.fetch("http://www.google.com")
+    Fetcher.new.fetch("http://www.yahoo.com")
+  end
+  LSpace.update(:log_prefix => rand(50000)) do
+    Fetcher.new.fetch("http://www.microsoft.com")
   end
 end
 ```
-
-Now, when you do anything eventmachiney, like `EM::defer` or create a new connection, or
-do an em-http-request, the LSpace will be preserved.
-
-```ruby
-def update_users
-  with_master_database do
-    EM::defer{ users.each(&:update) }
-  end
-end
-```
-
-How does this work?
-
-Every time that a new connection is created, the current LSpace is stored on it, and
-every time an event loop event fires, that LSpace is re-activated, along with all
-its state. This also happens for each callback or errback you add to a deferrable; so when
-the callback fires you'll be in the original LSpace.
 
 Around filters
 ==============
 
 In addition to just storing variables across call-stacks, LSpace allows you to wrap each
-re-entry to your code with `around_filters`. This lets you do things like maintain state
-in libraries like log4r that don't support LSpace.
+re-entry to your code with around filters. This lets you do things like maintain
+thread-local state in libraries like log4r that don't support LSpace.
 
 ```ruby
 LSpace.around_filter do |&block|
@@ -81,9 +114,12 @@ end
 Integrating with new libraries
 ================================
 
-There are two kinds of integration. Firstly, the simple case, where you have an API that
-takes a block, and may end up running that block in a different stack frame, you should
-call `.in_lspace` on that block:
+If you are using a Thread-pool, or an actor system, or an event loop, you will need to
+teach it about LSpace in order to get the full benefit of the system.
+
+There are two kinds of integration. Firstly, when your library accepts blocks from the
+programmer's code, and proceeds to run them on a different call-stack, you should call
+`Proc#in_lspace`:
 
 ```ruby
 def enqueue_task(&block)
@@ -103,9 +139,8 @@ class Scheduler
 end
 ```
 
-Secondly, if you have an object that runs callbacks at various different times, you should
-store a new LSpace when the object is created, and then re-activate it before calling the
-user's callbacks:
+Secondly, when your library creates objects that call out to the user's code, it's polite
+to re-use the same `LSpace` across each call:
 
 ```ruby
 class Job
@@ -118,3 +153,7 @@ class Job
   end
 end
 ```
+
+A new `LSpace` will by default inherit everything from its parent, so it's better to store
+`LSpace.new` than `LSpace.current`, so that if the user mutates their LSpace in a
+callback, the change does not propagate upwards.

@@ -1,4 +1,5 @@
 require 'eventmachine'
+require 'lspace'
 module EventMachine
 
   # Most of the low-level EventMachine stuff goes through singleton methods on the
