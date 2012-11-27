@@ -124,6 +124,7 @@ describe LSpace do
     end
 
     it "should revert the changed LSpace at the end of the block" do
+      LSpace.current.should_not == @lspace
       lspace = LSpace.current
       @lspace.wrap{ LSpace.current.should == @lspace }.call
       LSpace.current.should == lspace

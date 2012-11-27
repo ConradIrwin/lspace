@@ -29,7 +29,7 @@ class Module
   # This wraps both the &block parameter, and also any Procs
   # that are passed into the function directly.
   #
-  # If you need more complicated logic (i.e. wrapping Procs
+  # If you need more complicated logic (e.g. wrapping Procs
   # that are passed to a function in a dictionary) you're
   # on your own.
   #
@@ -46,13 +46,16 @@ class Module
   def in_lspace(*methods)
     methods.each do |method|
       method_without_lspace = "#{method}_without_lspace"
+
+      # Idempotence: do nothing if the _without_lspace method already exists.
+      # method_defined? matches public and protected methods; private methods need a separate check.
       next if method_defined?(method_without_lspace) || private_method_defined?(method_without_lspace)
 
       alias_method method_without_lspace, method
 
       define_method(method) do |*args, &block|
         args.map!{ |a| Proc === a ? a.in_lspace : a }
-        block = block && block.in_lspace
+        block = block.in_lspace if block
         __send__(method_without_lspace, *args, &block)
       end
 
@@ -63,7 +66,8 @@ class Module
 end
 
 class Proc
-  # Preserve LSpace when this Proc is run.
+  # Preserve LSpace when this Proc is run. Returns a new Proc, a closure that
+  # re-enters the current LSpace when it is called.
   #
   # @example
   #   todo = LSpace.new :user_id => 2 do
