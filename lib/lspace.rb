@@ -15,7 +15,7 @@ require File.expand_path('../lspace/class_methods', __FILE__)
 #
 # @example
 #   require 'lspace/thread'
-#   LSpace.update(:job_id => 1) do
+#   LSpace.with(:job_id => 1) do
 #     Thread.new do
 #       puts "processing #{LSpace[:job_id]}"
 #     end.join
@@ -47,8 +47,8 @@ class LSpace
   # of parent LSpaces. If the key is not found anywhere, nil is returned.
   #
   # @example
-  #   LSpace.update :user_id => 5 do
-  #     LSpace.update :user_id => 6 do
+  #   LSpace.with :user_id => 5 do
+  #     LSpace.with :user_id => 6 do
   #       LSpace[:user_id] == 6
   #     end
   #   end
@@ -65,7 +65,7 @@ class LSpace
   # Update the LSpace-variable with the given name.
   #
   # Bear in mind that any code using this LSpace will see this change, and consider
-  # using {LSpace.update} instead to localize your changes.
+  # using {LSpace.with} instead to localize your changes.
   #
   # This method is mostly useful for setting up a new LSpace before any code is
   # using it, and has no effect on parent LSpaces.

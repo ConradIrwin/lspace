@@ -25,8 +25,8 @@ class LSpace
   # The LSpace will inherit any unspecified keys from the currently active LSpace.
   #
   # @example
-  #   LSpace.update :user_id => 6 do
-  #     LSpace.update :job_id => 7 do
+  #   LSpace.with :user_id => 6 do
+  #     LSpace.with :job_id => 7 do
   #       LSpace[:user_id] == 6
   #       LSpace[:job_id] == 7
   #     end
@@ -35,7 +35,7 @@ class LSpace
   # @param [Hash] hash  The keys to update
   # @param [Proc] block  The logical block to run with the updated LSpace
   # @see LSpace.enter
-  def self.update(hash={}, &block)
+  def self.with(hash={}, &block)
     enter new(hash, current), &block
   end
 

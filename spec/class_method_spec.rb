@@ -18,16 +18,16 @@ describe LSpace do
     end
   end
 
-  describe ".update" do
+  describe ".with" do
     it "should enter a new LSpace with the new variables set" do
-      LSpace.update(:foo => 5) do
+      LSpace.with(:foo => 5) do
         LSpace[:foo].should == 5
       end
     end
 
     it "should enter a new LSpace which delegates to the current parent" do
-      LSpace.update(:foo => 5) do
-        LSpace.update(:bar => 4) do
+      LSpace.with(:foo => 5) do
+        LSpace.with(:bar => 4) do
           LSpace[:foo].should == 5
         end
       end
@@ -36,7 +36,7 @@ describe LSpace do
 
   describe ".clean" do
     it "should enter a new LSpace with no parent" do
-      LSpace.update(:foo => 5) do
+      LSpace.with(:foo => 5) do
         LSpace.clean do
           LSpace[:foo].should == nil
         end
@@ -45,7 +45,7 @@ describe LSpace do
   end
 
   describe ".enter" do
-    it "should update LSpace.current" do
+    it "should with LSpace.current" do
       LSpace.enter(@lspace) do
         LSpace.current.should == @lspace
       end

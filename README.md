@@ -19,7 +19,7 @@ class DatabaseConnection
   end
 
   def self.use_master(&block)
-    LSpace.update(:preferred_connection => master_connection) do
+    LSpace.with(:preferred_connection => master_connection) do
       block.call
     end
   end
@@ -69,11 +69,11 @@ class Fetcher
 end
 
 EM::run do
-  LSpace.update(:log_prefix => rand(50000)) do
+  LSpace.with(:log_prefix => rand(50000)) do
     Fetcher.new.fetch("http://www.google.com")
     Fetcher.new.fetch("http://www.yahoo.com")
   end
-  LSpace.update(:log_prefix => rand(50000)) do
+  LSpace.with(:log_prefix => rand(50000)) do
     Fetcher.new.fetch("http://www.microsoft.com")
   end
 end
