@@ -46,6 +46,9 @@ class Module
   def in_lspace(*methods)
     methods.each do |method|
       method_without_lspace = "#{method}_without_lspace"
+
+      # Idempotence: do nothing if the _without_lspace method already exists.
+      # method_defined? matches public and protected methods; private methods need a separate check.
       next if method_defined?(method_without_lspace) || private_method_defined?(method_without_lspace)
 
       alias_method method_without_lspace, method
