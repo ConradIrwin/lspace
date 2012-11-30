@@ -1,5 +1,6 @@
 require_relative '../lib/lspace'
 require_relative '../lib/lspace/eventmachine'
+require_relative '../lib/lspace/celluloid'
 require 'pry-rescue/rspec'
 
 RSpec.configure do |c|

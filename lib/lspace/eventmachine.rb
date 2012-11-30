@@ -50,6 +50,7 @@ module EventMachine
     # @example
     #   module EchoServer
     #     def setup_lspace
+    #       LSpace[:log_prefix] = rand(100000).to_s(16)
     #       LSpace.around_filter do |&block|
     #         begin
     #           block.call
@@ -76,7 +77,11 @@ module EventMachine
     # EM uses the arity of unbind to decide which arguments to pass it.
     # AFAIK the no-argument version is considerably more popular, so we use that here.
     [:unbind].each do |method|
-      define_method(method) { LSpace.enter(@lspace) { super() } }
+      define_method(method) do |*a, &b|
+        LSpace.enter(@lspace) do
+          super()
+        end
+      end
     end
   end
 end

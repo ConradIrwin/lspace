@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = "lspace"
-  s.version = "0.2"
+  s.version = "0.3"
   s.platform = Gem::Platform::RUBY
   s.author = "Conrad Irwin"
   s.email = "conrad.irwin@gmail.com"
@@ -14,4 +14,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'pry-rescue'
   s.add_development_dependency 'pry-stack_explorer'
   s.add_development_dependency 'eventmachine'
+  s.add_development_dependency 'celluloid'
+  s.add_development_dependency 'yard'
+  s.add_development_dependency 'redcarpet'
 end
