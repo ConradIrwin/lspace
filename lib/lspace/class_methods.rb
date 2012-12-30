@@ -67,7 +67,7 @@ class LSpace
     previous = current
     self.current = lspace
 
-    filters = lspace.hierarchy.take_while{ |lspace| lspace != previous }.flat_map(&:around_filters)
+    filters = lspace.hierarchy.take_while{ |lspace| lspace != previous }.flatten.map(&:around_filters).flatten
 
     filters.inject(block) do |blk, filter|
       lambda{ filter.call(&blk) }
