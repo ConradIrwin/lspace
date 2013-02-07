@@ -76,6 +76,7 @@ describe LSpace do
     it "should preserve LSpace in all connection callbacks" do
       $server = []
       $client = []
+      $tick = []
       server = Module.new do
         def setup_lspace
           LSpace[:foo] = :server
@@ -113,7 +114,6 @@ describe LSpace do
 
         def unbind
           $client << [:unbind, LSpace[:foo], LSpace[:bar]]
-          EM::stop
         end
       end
 
@@ -121,11 +121,16 @@ describe LSpace do
         LSpace.with(:bar => :baz) do
           EM::start_server '0.0.0.0', 9345, server
           EM::connect '127.0.0.1', 9345, client
+          EM::PeriodicTimer.new(0.1) do
+            $tick << [:tick, LSpace[:bar]]
+            EM::stop
+          end
         end
       end
 
       $client.should == [[:post_init, :client, :baz], [:receive_data, :client, :baz], [:unbind, :client, :baz]]
       $server.should == [[:post_init, :server, :baz], [:receive_data, :server, :baz], [:unbind, :server, :baz]]
+      $tick.should == [[:tick, :baz]]
     end
   end
 end
