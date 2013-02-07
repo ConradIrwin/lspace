@@ -27,7 +27,7 @@ class Module
   # Preserve lspace of all blocks passed to this function.
   #
   # This wraps both the &block parameter, and also any Procs
-  # that are passed into the function directly.
+  # and Methods that are passed into the function directly.
   #
   # If you need more complicated logic (e.g. wrapping Procs
   # that are passed to a function in a dictionary) you're
@@ -54,7 +54,7 @@ class Module
       alias_method method_without_lspace, method
 
       define_method(method) do |*args, &block|
-        args.map!{ |a| Proc === a ? a.in_lspace : a }
+        args.map!{ |a| (Proc === a || Method === a) ? a.in_lspace : a }
         block = block.in_lspace if block
         __send__(method_without_lspace, *args, &block)
       end
@@ -80,3 +80,22 @@ class Proc
     LSpace.preserve(&self)
   end
 end
+
+class Method
+  # Preserve LSpace when this method is run. Returns a new Proc, a closure that
+  # re-enters the current LSpace when it is called.
+  #
+  # @example
+  #   def fire
+  #     LSpace[:user_id]
+  #   end
+  #
+  #   todo = method(:fire!).in_lspace
+  #   todo.call == 2
+  # @see LSpace.preserve
+  # @return [Proc] A version of self that re-enters LSpace before running
+  def in_lspace
+    LSpace.preserve(&self)
+  end
+end
+
