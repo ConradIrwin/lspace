@@ -12,6 +12,13 @@ module EventMachine
   class << self
     in_lspace :add_timer, :next_tick, :error_handler, :defer, :run, :run_block, :schedule, :fork_reactor
     in_lspace :add_shutdown_hook if method_defined?(:add_shutdown_hook) # only some versions of EM
+
+    alias_method :start_server_without_lspace, :start_server
+    def start_server(*args, &block)
+      s = start_server_without_lspace(*args, &(block ? block.in_lspace : nil))
+      @acceptors[s][0].in_lspace
+      s
+    end
   end
 
   # Many EM APIs (e.g. em-http-request) are based on deferrables. Preserving lspace for
@@ -28,14 +35,40 @@ module EventMachine
       alias_method :allocate_without_lspace, :allocate
     end
 
+    # Ensure that instances of this connection are run in the current LSpace
+    #
+    # This is used by our version of {EM.start_server} to ensure that every
+    # instance of the server boots inside the same LSpace.
+    #
+    # We don't call it on client classes, so they will inherit the active
+    # LSpace when the outbound connection is created.
+    #
+    # @example
+    #   module Handler
+    #     def post_init
+    #       puts LSpace[:error_prefix]
+    #     end
+    #   end
+    #
+    #   LSpace.with(:error_prefix => 'handler') do
+    #     EM::start_server 'localhost', 8080, Handler
+    #   end
+    #
+    def self.in_lspace
+      @lspace = LSpace.current
+    end
+
     # Overridden allocate which sets up a new LSpace.
     #
     # Each connection object is run in its own LSpace, which can be
     # configured by implementing the {Connection#setup_lspace} method.
     def self.allocate
+      lspace = @lspace || LSpace.current
       allocate_without_lspace.instance_eval do
         extend EventMachine::LSpacePreserver
-        LSpace.with do
+        # Create a new LSpace per connection so that connections don't
+        # effect each other side-ways.
+        LSpace.new({}, lspace).enter do
           setup_lspace
           @lspace = LSpace.current
         end

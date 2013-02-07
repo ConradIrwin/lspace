@@ -117,8 +117,8 @@ describe LSpace do
         end
       end
 
-      LSpace.with(:bar => :baz) do
-        EM::run do
+      EM::run do
+        LSpace.with(:bar => :baz) do
           EM::start_server '0.0.0.0', 9345, server
           EM::connect '127.0.0.1', 9345, client
         end
