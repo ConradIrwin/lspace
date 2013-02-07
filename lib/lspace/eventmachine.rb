@@ -19,6 +19,15 @@ module EventMachine
       @acceptors[s][0].in_lspace
       s
     end
+
+    if method_defined?(:attach_server)
+      alias_method :attach_server_without_lspace, :attach_server
+      def attach_server(*args, &block)
+        s = attach_server_without_lspace(*args, &(block ? block.in_lspace : nil))
+        @acceptors[s][0].in_lspace
+        s
+      end
+    end
   end
 
   # Many EM APIs (e.g. em-http-request) are based on deferrables. Preserving lspace for
