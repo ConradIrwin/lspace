@@ -28,6 +28,31 @@ module EventMachine
         s
       end
     end
+
+    # By default EM::run will temporarily switch to a clean LSpace to ensure
+    # that all your around_filters are run for every block executed on the
+    # reactor.
+    #
+    # If you don't want this behaviour, you can call EM.run_in_current_lspace
+    # which will continue using the current lspace.
+    alias_method :run_in_current_lspace, :run
+
+    # Override run to ensure that the LSpace context is re-entered more
+    # appropriately.
+    #
+    # This ensures that all blocks scheduled on the eventmachine reactor will
+    # be wrapped in the around_filters you define, and makes implementing things
+    # like a global error handler, or em-monitor a little easier.
+    def run(*args, &block)
+      lspace = LSpace.current
+      LSpace.clean do
+        run_in_current_lspace(*args) do |*a, &b|
+          lspace.enter do
+            block.call *a, &b if block_given?
+          end
+        end
+      end
+    end
   end
 
   # Many EM APIs (e.g. em-http-request) are based on deferrables. Preserving lspace for

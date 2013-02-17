@@ -132,5 +132,39 @@ describe LSpace do
       $server.should == [[:post_init, :server, :baz], [:receive_data, :server, :baz], [:unbind, :server, :baz]]
       $tick.should == [[:tick, :baz]]
     end
+
+    it "should ensure that around_filters defined outside EM::run are run on each callback inside the reactor" do
+      LSpace[:count] = 0
+      LSpace.around_filter do |&block|
+        LSpace[:count] += 1
+        block.call
+      end
+
+      LSpace[:count].should == 0
+      EM::run do
+        LSpace[:count].should == 1
+        EM::next_tick do
+          LSpace[:count].should == 2
+          EM::stop
+        end
+      end
+    end
+
+    it "should not re-enter LSpace if run_in_current_lspace is used" do
+      LSpace[:count] = 0
+      LSpace.around_filter do |&block|
+        LSpace[:count] += 1
+        block.call
+      end
+
+      LSpace[:count].should == 0
+      EM::run_in_current_lspace do
+        LSpace[:count].should == 0
+        EM::next_tick do
+          LSpace[:count].should == 0
+          EM::stop
+        end
+      end
+    end
   end
 end

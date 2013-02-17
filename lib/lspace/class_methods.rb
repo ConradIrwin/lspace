@@ -16,7 +16,11 @@ class LSpace
   # @param [Proc] block  The logical block that will be run in the clean LSpace
   # @see LSpace.enter
   def self.clean(&block)
-    enter new({}, nil), &block
+    if block_given?
+      enter new({}, nil), &block
+    else
+      new({}, nil)
+    end
   end
 
   # Create a new LSpace with the given keys set to the given values, and run the
