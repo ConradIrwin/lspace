@@ -89,7 +89,7 @@ describe LSpace do
         LSpace[:foo] = 5
         LSpace[:foo].should == 5
       end
-      LSpace[:foo].should be_nil
+      @lspace[:foo].should be_nil
     end
 
     it "should show the new forked LSpace to around_filters after returning" do
