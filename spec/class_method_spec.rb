@@ -82,6 +82,30 @@ describe LSpace do
     end
   end
 
+  describe ".fork" do
+    it "should not propagate variable changes to the parent LSpace" do
+      LSpace.enter(@lspace) do
+        LSpace.fork
+        LSpace[:foo] = 5
+        LSpace[:foo].should == 5
+      end
+      LSpace[:foo].should be_nil
+    end
+
+    it "should show the new forked LSpace to around_filters after returning" do
+      @lspace.around_filter do |&block|
+        LSpace[:foo].should == 4
+        block.call
+        LSpace[:foo].should == 5
+      end
+      @lspace[:foo] = 4
+      @lspace.enter do
+        LSpace.fork
+        LSpace[:foo] = 5
+      end
+    end
+  end
+
   describe ".preserve" do
     it "should delegate to LSpace.current" do
       LSpace.current.should_receive(:wrap).once

@@ -76,6 +76,18 @@ class LSpace
     self.current = previous
   end
 
+  # Replace the current LSpace with a fork of it.
+  #
+  # Forking the Lspace means that values changed with LSpace#[]= no
+  # longer affect parent LSpaces.
+  #
+  # This should be used carefully - it may confuse around_filters,
+  # since they will see a different LSpace after the block is called
+  # than before.
+  def self.fork
+    self.current = LSpace.new({}, self.current)
+  end
+
   # Create a closure that will re-enter the current LSpace when the block is called.
   #
   # @example

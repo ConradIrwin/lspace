@@ -65,7 +65,7 @@ class LSpace
   # Update the LSpace-variable with the given name.
   #
   # Bear in mind that any code using this LSpace will see this change, and consider
-  # using {LSpace.with} instead to localize your changes.
+  # using {LSpace.with} or {LSpace.fork} instead to localize your changes.
   #
   # This method is mostly useful for setting up a new LSpace before any code is
   # using it, and has no effect on parent LSpaces.
