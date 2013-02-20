@@ -141,12 +141,20 @@ module EventMachine
       define_method(method) { |*a, &b| LSpace.enter(@lspace) { super(*a, &b) } }
     end
 
-    # EM uses the arity of unbind to decide which arguments to pass it.
-    # AFAIK the no-argument version is considerably more popular, so we use that here.
+    # EM uses the arity of unbind to decide which arguments to pass
+    # it, so we'll do that too
     [:unbind].each do |method|
-      define_method(method) do |*a, &b|
+      define_method(method) do |reason|
         LSpace.enter(@lspace) do
-          super()
+          orig_method = self.class.ancestors.
+            map {|kls| kls.instance_method(:unbind) rescue nil}.
+            compact.
+            first
+          if orig_method.arity.abs == 1
+            super(reason)
+          else
+            super()
+          end
         end
       end
     end
