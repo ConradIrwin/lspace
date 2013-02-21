@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = "lspace"
-  s.version = "0.8"
+  s.version = "0.9"
   s.platform = Gem::Platform::RUBY
   s.author = "Conrad Irwin"
   s.email = "conrad.irwin@gmail.com"
