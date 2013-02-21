@@ -166,5 +166,21 @@ describe LSpace do
         end
       end
     end
+
+    it "should preserve an argument to unbind if one is given" do
+      seen = nil
+      client = Module.new do
+        define_method(:unbind) do |reason|
+          seen = reason
+          EM::stop
+        end
+      end
+
+      EM::run do
+        EM::connect 'localhost', 9345, client
+      end
+
+      seen.should == Errno::ECONNREFUSED
+    end
   end
 end
