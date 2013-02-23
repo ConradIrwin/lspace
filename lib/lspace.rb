@@ -136,10 +136,10 @@ class LSpace
   #
   # @return [Array<LSpace>]
   def hierarchy
-    if parent
-      [self] + parent.hierarchy
-    else
-      [self]
-    end
+    @hierarchy ||= if parent
+                     [self] + parent.hierarchy
+                   else
+                     [self]
+                   end
   end
 end
