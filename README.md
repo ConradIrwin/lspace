@@ -208,3 +208,15 @@ end
 A new `LSpace` will by default inherit everything from its parent, so it's better to store
 `LSpace.new` than `LSpace.current`, so that if the user mutates their LSpace in a
 callback, the change does not propagate upwards.
+
+Testing
+=======
+
+If you're using `LSpace`, you probably want each test case to run in its own `LSpace` so
+that tests cannot pollute each other. If you're using rspec you can do this with:
+
+```ruby
+require 'lspace/rspec'
+```
+
+If not, you'll have to add an around filter yourself.
