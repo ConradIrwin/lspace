@@ -121,6 +121,13 @@ class LSpace
     current[key] = value
   end
 
+  # Find all the keys currently in LSpace
+  #
+  # @see LSpace#keys
+  def self.keys
+    current.keys
+  end
+
   # Add an around filter to the current LSpace
   #
   # @see LSpace#around_filter

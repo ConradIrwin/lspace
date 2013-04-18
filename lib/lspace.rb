@@ -82,6 +82,18 @@ class LSpace
     hash[key] = value
   end
 
+  # Return the list of keys in the current LSpace or its parents.
+  #
+  # @example
+  #   parent = LSpace.new(:user_id => 5)
+  #   child  = LSpace.new(:friend_id => 7, parent)
+  #   child.keys == [:user_id, :friend_id]
+  #
+  # @return [Array]
+  def keys
+    hierarchy.flat_map{ |lspace| lspace.hash.keys }.uniq
+  end
+
   # Add an around_filter to this LSpace.
   #
   # Around filters are blocks that take a block-parameter. They are called whenever

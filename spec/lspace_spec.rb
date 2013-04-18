@@ -136,6 +136,22 @@ describe LSpace do
     end
   end
 
+  describe "#keys" do
+    it "should return keys in the current LSpace" do
+      @lspace.keys.should == [:foo]
+    end
+
+    it "should return keys from the parents" do
+      child = LSpace.new({:bar => 7}, @lspace)
+      child.keys.should == [:bar, :foo]
+    end
+
+    it "should not contain duplicates" do
+      child = LSpace.new({:foo => 7}, @lspace)
+      @lspace.keys.should == [:foo]
+    end
+  end
+
   describe "#hierarchy" do
     it "should return [self] if there is no parent" do
       @lspace.hierarchy.should == [@lspace]
