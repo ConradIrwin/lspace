@@ -135,6 +135,13 @@ class LSpace
     current.around_filter(&filter)
   end
 
+  # Add an exception handler
+  #
+  # @see LSpace#rescue
+  def self.rescue(*exceptions, &handler)
+    current.rescue(*exceptions, &handler)
+  end
+
   # Get the current LSpace
   #
   # @return [LSpace]

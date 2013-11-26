@@ -121,6 +121,30 @@ class LSpace
     self
   end
 
+  # Add an error handler to this LSpace.
+  #
+  # @example
+  #   lspace = LSpace.new
+  #   lspace.rescue do |e|
+  #     puts "Job #{LSpace[:job_id]} failed with: #{e}
+  #   end
+  #
+  #   LSpace.enter(lspace) do
+  #     Thread.new{ reaise "foo" }.join
+  #   end
+  #
+  def rescue(*exceptions, &handler)
+    exceptions << RuntimeError unless exceptions.any?
+
+    around_filter do |&block|
+      begin
+        block.call
+      rescue *exceptions => e
+        handler.call e
+      end
+    end
+  end
+
   # Enter this LSpace for the duration of the block
   #
   # @see LSpace.enter
