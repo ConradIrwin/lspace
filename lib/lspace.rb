@@ -130,7 +130,7 @@ class LSpace
   #   end
   #
   #   LSpace.enter(lspace) do
-  #     Thread.new{ reaise "foo" }.join
+  #     Thread.new{ raise "foo" }.join
   #   end
   #
   def rescue(*exceptions, &handler)
