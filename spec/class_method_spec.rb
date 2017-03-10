@@ -74,12 +74,6 @@ describe LSpace do
         Thread.new{ LSpace.current.should_not == @lspace }.join
       end
     end
-
-    it "should not effect other fibers" do
-      LSpace.enter(@lspace) do
-        Fiber.new{ LSpace.current.should_not == @lspace }.resume
-      end
-    end
   end
 
   describe ".fork" do
