@@ -1,5 +1,6 @@
 require_relative '../lib/lspace'
 require_relative '../lib/lspace/eventmachine'
 require_relative '../lib/lspace/celluloid'
+require_relative '../lib/lspace/fiber'
 require_relative '../lib/lspace/rspec'
 require 'pry-rescue/rspec'

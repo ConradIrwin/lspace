@@ -30,8 +30,8 @@ Operation safety
 
 LSpace is thread-safe, so entering a new LSpace on one thread won't affect any of the
 other Threads. In addition, LSpace also comes with extensions for
-[eventmachine](https://github.com/eventmachine/eventmachine) and
-[celluloid](http://celluloid.io/) which extends the notion of thread-safety to
+[eventmachine](https://github.com/eventmachine/eventmachine),
+[celluloid](http://celluloid.io/), and fiber which extends the notion of thread-safety to
 operation-safety.
 
 This means that even if you're doing multiple things on one thread, or one thing using
@@ -64,6 +64,14 @@ end
 ```
 
 See also [examples/celluloid.rb](https://github.com/ConradIrwin/lspace/tree/master/examples/celluloid.rb).
+
+
+```ruby
+require 'lspace/fiber'
+LSpace.with(:user_id => 5) do
+  Fiber.new { LSpace[:user_id] == 5 }.resume
+end
+```
 
 `lspace_reader`
 ===============
