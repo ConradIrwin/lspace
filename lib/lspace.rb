@@ -22,8 +22,9 @@ require File.expand_path('../lspace/class_methods', __FILE__)
 #   end
 #
 class LSpace
+  MISSING_KEY = Object.new.freeze
 
-  attr_accessor :hash, :parent, :around_filters
+  attr_accessor :hash, :parent, :around_filters, :heirarchy_depth_for_key
 
   # Create a new LSpace.
   #
@@ -38,6 +39,8 @@ class LSpace
     @hash = hash
     @parent = parent
     @around_filters = []
+    @heirarchy_depth_for_key = {}
+
     enter(&block) if block_given?
   end
 
@@ -55,9 +58,18 @@ class LSpace
   # @param [Object] key
   # @return [Object]
   def [](key)
-    hierarchy.each do |lspace|
-      return lspace.hash[key] if lspace.hash.has_key?(key)
+    if (depth = heirarchy_depth_for_key[key])
+      return depth == MISSING_KEY ? nil : hierarchy[depth].hash[key]
     end
+
+    hierarchy.each_with_index do |lspace, depth|
+      if lspace.hash.has_key?(key)
+        heirarchy_depth_for_key[key] = depth
+        return lspace.hash[key]
+      end
+    end
+
+    heirarchy_depth_for_key[key] = MISSING_KEY
 
     nil
   end
@@ -79,6 +91,11 @@ class LSpace
   # @param [Object] key
   # @param [Object] value
   def []=(key, value)
+    if LSpace.current != self && self.parent
+      raise ArgumentError.new("You cannot modify a LSpace you are not currently inside of.")
+    end
+
+    heirarchy_depth_for_key.delete(key)
     hash[key] = value
   end
 
