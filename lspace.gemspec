@@ -9,6 +9,7 @@ Gem::Specification.new do |s|
   s.description = "Provides the convenience of global variables, without the safety concerns."
   s.files = `git ls-files`.split("\n")
   s.require_path = "lib"
+  s.license = "MIT"
 
   s.add_development_dependency 'rspec'
   s.add_development_dependency 'pry-rescue'
